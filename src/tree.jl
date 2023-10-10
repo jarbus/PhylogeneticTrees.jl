@@ -51,7 +51,14 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
         mrca_distances::Dict{Int, Int} where mrca_distances[id] is the distance between
             id and the MRCA
     """
+
+    # offspring_distances[id1] is the distance between id1 and all of its offspring
+    # starting from the ids, we work our way up the tree, merging and 
+    # incrementing offspring_distances as we go
     offspring_distances = Dict{Int, Dict{Int, Int}}()
+
+    # pairwise_distances[id1, id2] is the distance between id1 and id2
+    # for each (id1, id2) pair, we also store (id2, id1)
     pairwise_distances = Dict{Tuple{Int, Int}, Int}()
 
     # We use a priority queue to process nodes from oldest to youngest. This
@@ -61,6 +68,7 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
 
     mrca = nothing
     genesis_nodes = Set{PhylogeneticNode}()
+
     # start off with leaves/members of pop
     for id in ids
         pq[tree.tree[id]] = id
