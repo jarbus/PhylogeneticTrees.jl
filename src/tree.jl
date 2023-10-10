@@ -59,22 +59,28 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
     # subtree rooted at a node before we process that node.
     pq = PriorityQueue{PhylogeneticNode, Int}(Base.Order.Reverse)
 
+    mrca = nothing
+    genesis_nodes = Set{PhylogeneticNode}()
     # start off with leaves/members of pop
     for id in ids
         pq[tree.tree[id]] = id
     end
-    mrca = nothing
     # process nodes from oldest to youngest, computing pairwise distances between all
     # children each time as we work our way up the tree
     while length(pq) > 0
         node = dequeue!(pq)
-        if length(pq) == 0
-            mrca = node
-        end
 
+        # node is the MRCA if there are no more nodes in the queue
+        # and we haven't seen any other genesis nodes
+        if length(pq) == 0 && length(genesis_nodes) == 0
+            mrca = node.id
+        end
         # add parent if it exists and node is not the MRCA
         if !isnothing(node.parent) && length(pq) > 0
             pq[node.parent] = node.parent.id
+        end
+        if isnothing(node.parent)
+            push!(genesis_nodes, node)
         end
 
         # compute distance between each offspring and node
@@ -101,6 +107,6 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
             end
         end
     end
-    mrca_distances = isnothing(mrca) ? Dict{Int, Int}() : offspring_distances[mrca.id]
-    return mrca.id, pairwise_distances, mrca_distances
+    mrca_distances = isnothing(mrca) ? Dict{Int, Int}() : offspring_distances[mrca]
+    return mrca, pairwise_distances, mrca_distances
 end

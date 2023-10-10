@@ -79,6 +79,20 @@ end
         @test (3,4) ∉ keys(distances)
         @test distances[1,3] == 1
         @test distances[2,4] == 1
+        @test isnothing(mrca)
+        @test length(mrca_distances) == 0
+    end
+
+    @testset "Connected MRCA at genesis" begin
+        tree = PhylogeneticTree([1, 2])
+        add_child!(tree, 1, 3)
+        add_child!(tree, 1, 4)
+        mrca, distances, mrca_distances = compute_pairwise_distances(tree, Set([3,4]))
+        @test mrca == 1
+        add_child!(tree, 3, 5)
+        add_child!(tree, 4, 6)
+        mrca, distances, mrca_distances = compute_pairwise_distances(tree, Set([5,6]))
+        @test mrca == 1
     end
 
 end
