@@ -1,5 +1,4 @@
 module PhylogeneticTrees
-
-# Write your package code here.
-
+export PhylogeneticTree, PhylogeneticNode, add_child!
+include("./tree.jl")
 end
