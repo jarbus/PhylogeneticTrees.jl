@@ -1,3 +1,4 @@
+using DataStructures
 struct PhylogeneticNode
     id::Int
     parent::Union{PhylogeneticNode, Nothing}
@@ -9,7 +10,6 @@ mutable struct PhylogeneticTree
     tree::Dict{Int,PhylogeneticNode}
     leaves::Dict{Int,PhylogeneticNode}
     mrca::Union{PhylogeneticNode, Nothing}
-    # distances::Dict{Int, Dict{Int, Int}}
 end
 
 function PhylogeneticTree()
@@ -23,6 +23,7 @@ function PhylogeneticTree(genesis_pop_ids::Vector{Int})
 end
 
 function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
+    @assert child_id > parent_id "Child node must have a larger ID than parent"
     @assert parent_id ∈ keys(tree.tree) "Parent node must be in tree"
     @assert child_id ∉ keys(tree.tree) "Child node must not be in tree"
     parent = tree.tree[parent_id]
@@ -33,29 +34,73 @@ function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
     tree.leaves[child_id] = child   # add child to leaves
 end
 
+function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
+    """Compute pairwise distances between nodes in the tree, and between 
+    nodes in the tree and the MRCA. Distances are computed between nodes in
+    `ids` and their ancestors, all the way up to the MRCA.
+    
 
-# function add_distance!(tree::PhylogeneticTree, id1::Int, id2::Int, distance::Int)
-#     if id1 ∉ keys(tree.distances)
-#         tree.distances[id1] = Dict{Int, Int}()
-#     end
-#     tree.distances[id1][id2] = distance
-#     tree.distances[id2][id1] = distance
-# end
-#
-# function compute_n_offspring(tree::PhylogeneticTree)
-#     n_offspring = Dict{Int, Int}()
-#     for (id, node) in tree.leaves
-#         n_offspring[id] = 0
-#     end
-# end
-#
-# function compute_distances!(tree::PhylogeneticTree)
-#     cur_pointers = Dict{PhylogeneticNode, Vector{Vector{Int}}}()
-#     next_pointers = Dict{PhylogeneticNode, Vector{Vector{Int}}}()
-#     for node in values(tree.leaves)
-#         cur_pointers[node] = [[0]]
-#     end
-#     while length(cur_pointers) > 0
-#     end
-# end
-#
+    Params:
+        tree::PhylogeneticTree: the tree to compute distances for
+        ids::Set{Int}: the set of IDs to start working up the tree
+
+    Returns:
+        mrca::Union{Int, Nothing}: the MRCA of the tree
+        pairwise_distances::Dict{Tuple{Int,Int}, Int} where pairwise_distances[id1, id2]
+            is the distance between id1 and id2
+        mrca_distances::Dict{Int, Int} where mrca_distances[id] is the distance between
+            id and the MRCA
+    """
+    offspring_distances = Dict{Int, Dict{Int, Int}}()
+    pairwise_distances = Dict{Tuple{Int, Int}, Int}()
+
+    # We use a priority queue to process nodes from oldest to youngest. This
+    # guarantees that we will have computed the pairwise distances within the
+    # subtree rooted at a node before we process that node.
+    pq = PriorityQueue{PhylogeneticNode, Int}(Base.Order.Reverse)
+
+    # start off with leaves/members of pop
+    for id in ids
+        pq[tree.tree[id]] = id
+    end
+    mrca = nothing
+    # process nodes from oldest to youngest, computing pairwise distances between all
+    # children each time as we work our way up the tree
+    while length(pq) > 0
+        node = dequeue!(pq)
+        if length(pq) == 0
+            mrca = node
+        end
+
+        # add parent if it exists and node is not the MRCA
+        if !isnothing(node.parent) && length(pq) > 0
+            pq[node.parent] = node.parent.id
+        end
+
+        # compute distance between each offspring and node
+        offspring_distances[node.id] = Dict{Int, Int}(node.id => 0)
+        for child in node.children
+            for (o_id, o_dist) in offspring_distances[child.id]
+                offspring_distances[node.id][o_id] = o_dist + 1
+                pairwise_distances[node.id, o_id] = o_dist + 1
+                pairwise_distances[o_id, node.id] = o_dist + 1
+
+            end
+        end
+        # compute pairwise distances between all offspring
+        # first two loops: iterate over all pairs of children
+        for (cidx1, child1) in enumerate(node.children[1:end-1])
+            for (cidx2, child2) in enumerate(node.children[cidx1+1:end])
+                # second two loops: iterate over all pairs of offspring between the two children
+                for (o_id1, o_dist1) in offspring_distances[child1.id]
+                    for (o_id2, o_dist2) in offspring_distances[child2.id]
+                        pairwise_distances[o_id2, o_id1] = o_dist1 + o_dist2 + 2
+                        pairwise_distances[o_id1, o_id2] = o_dist1 + o_dist2 + 2
+                    end
+                end
+            end
+        end
+    end
+    mrca_distances = isnothing(mrca) ? Dict{Int, Int}() : offspring_distances[mrca.id]
+    return mrca.id, pairwise_distances, mrca_distances
+end

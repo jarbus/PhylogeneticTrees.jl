@@ -1,7 +1,7 @@
 using PhylogeneticTrees
 using Test
 
-@testset "PhylogeneticTrees.jl" begin
+@testset "Construction" begin
     n_pop = 10
     genesis_pop = collect(1:n_pop)
     tree = PhylogeneticTree(genesis_pop)
@@ -33,4 +33,52 @@ using Test
         @test length(tree.genesis) == n_pop
         @test length(tree.leaves) == n_pop
     end
+end
+
+@testset "Distances" begin
+    @testset "Connected" begin
+        #   1
+        #   |
+        #   2
+        #  / \
+        # 3   4
+        # |   |
+        # 5   6
+        #     |
+        #     7
+        tree = PhylogeneticTree([1])
+        add_child!(tree, 1, 2)
+        add_child!(tree, 2, 3)
+        add_child!(tree, 2, 4)
+        add_child!(tree, 3, 5)
+        add_child!(tree, 4, 6)
+        add_child!(tree, 6, 7)
+        mrca, distances, mrca_distances = compute_pairwise_distances(tree, Set([5,7]))
+        @test distances[5,7] == 5
+        @test distances[3,4] == 2
+        @test distances[3,7] == 4
+        @test distances[3,5] == 1
+        @test distances[6,7] == 1
+        @test distances[2,3] == 1
+        @test distances[2,5] == 2
+        @test distances[3,6] == 3
+        @test (1,2) ∉ keys(distances)
+        nodes = [2,3,4,5,6,7]
+        for i in 1:length(nodes)-1
+            for j in i+1:length(nodes)
+                @test distances[nodes[i],nodes[j]] == distances[nodes[j],nodes[i]]
+            end
+        end
+    end
+
+    @testset "Disconnected" begin
+        tree = PhylogeneticTree([1, 2])
+        add_child!(tree, 1, 3)
+        add_child!(tree, 2, 4)
+        mrca, distances, mrca_distances = compute_pairwise_distances(tree, Set([3,4]))
+        @test (3,4) ∉ keys(distances)
+        @test distances[1,3] == 1
+        @test distances[2,4] == 1
+    end
+
 end
