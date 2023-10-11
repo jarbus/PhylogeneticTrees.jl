@@ -94,6 +94,7 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
         # compute distance between each offspring and node
         offspring_distances[node.id] = Dict{Int, Int}(node.id => 0)
         for child in node.children
+            child.id ∉ keys(offspring_distances) && continue
             for (o_id, o_dist) in offspring_distances[child.id]
                 offspring_distances[node.id][o_id] = o_dist + 1
                 pairwise_distances[node.id, o_id] = o_dist + 1
@@ -104,7 +105,9 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
         # compute pairwise distances between all offspring
         # first two loops: iterate over all pairs of children
         for (cidx1, child1) in enumerate(node.children[1:end-1])
+            child1.id ∉ keys(offspring_distances) && continue
             for (cidx2, child2) in enumerate(node.children[cidx1+1:end])
+                child2.id ∉ keys(offspring_distances) && continue
                 # second two loops: iterate over all pairs of offspring between the two children
                 for (o_id1, o_dist1) in offspring_distances[child1.id]
                     for (o_id2, o_dist2) in offspring_distances[child2.id]

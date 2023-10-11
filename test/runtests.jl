@@ -95,4 +95,16 @@ end
         @test mrca == 1
     end
 
+    @testset "Compute distance between subset of leaves" begin
+        # This test makes sure that we don't need to process 4 before processing 1
+        tree = PhylogeneticTree([1, 2])
+        add_child!(tree, 1, 3)
+        add_child!(tree, 1, 4)
+        mrca, distances, mrca_distances = compute_pairwise_distances(tree, Set([2, 3]))
+        @test isnothing(mrca)
+        @test (1,2) ∉ keys(distances)
+        @test (1,4) ∉ keys(distances)
+        @test distances[1,3] == 1
+    end
+
 end
