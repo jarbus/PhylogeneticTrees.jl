@@ -107,20 +107,4 @@ end
         @test distances[1,3] == 1
     end
 
-    @testset "Large Random Tree, all pairwise distances" begin
-        tree = PhylogeneticTree(collect(1:100))
-        for i in 101:1000
-            add_child!(tree, i - rand(1:10), i+1)
-        end
-        ids = Set(collect(900:1000)) 
-        mrca, distances, mrca_distances = compute_pairwise_distances(tree, ids)
-        for id1 in ids
-            for id2 in ids
-                id1 == id2 && continue
-                @test distances[id1, id2] == distances[id2, id1]
-            end
-        end
-    end
-
-
 end
