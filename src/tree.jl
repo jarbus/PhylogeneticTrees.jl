@@ -34,7 +34,7 @@ function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
     tree.leaves[child_id] = child   # add child to leaves
 end
 
-function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
+function compute_pairwise_distances!(tree::PhylogeneticTree, ids::Set{Int}; remove_unreachable_nodes=false)
     """Compute pairwise distances between nodes in the tree, and between 
     nodes in the tree and the MRCA. Distances are computed between nodes in
     `ids` and their ancestors, all the way up to the MRCA.
@@ -115,6 +115,16 @@ function compute_pairwise_distances(tree::PhylogeneticTree, ids::Set{Int})
                         pairwise_distances[o_id1, o_id2] = o_dist1 + o_dist2 + 2
                     end
                 end
+            end
+        end
+    end
+
+    # remove unreachable nodes from the tree
+    if remove_unreachable_nodes
+        for id in keys(tree.tree)
+            if id ∉ keys(offspring_distances)
+                delete!(tree.tree, id)
+                delete!(tree.leaves, id)
             end
         end
     end
