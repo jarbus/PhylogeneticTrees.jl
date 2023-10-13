@@ -57,6 +57,7 @@ end
         @test distances[5,7] == 5
         @test distances[3,4] == 2
         @test distances[3,7] == 4
+        @test distances[3,3] == 0
         @test distances[3,5] == 1
         @test distances[6,7] == 1
         @test distances[2,3] == 1
@@ -77,6 +78,7 @@ end
         add_child!(tree, 2, 4)
         mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set([3,4]))
         @test (3,4) ∉ keys(distances)
+        @test distances[1,1] == 0
         @test distances[1,3] == 1
         @test distances[2,4] == 1
         @test isnothing(mrca)
