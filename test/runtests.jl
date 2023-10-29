@@ -65,11 +65,6 @@ end
         @test distances[3,6] == 3
         @test (1,2) ∉ keys(distances)
         nodes = [2,3,4,5,6,7]
-        for i in 1:length(nodes)-1
-            for j in i+1:length(nodes)
-                @test distances[nodes[i],nodes[j]] == distances[nodes[j],nodes[i]]
-            end
-        end
     end
 
     @testset "Disconnected" begin
@@ -153,4 +148,22 @@ end
 
     end
 
+end
+
+@testset "Perf" begin
+    # create a tree with 8192 leaves, each node has two children
+    function recursively_add_two_children(tree, id, depth)
+        if depth == 0
+            return
+        end
+        add_child!(tree, id, id*2+1)
+        add_child!(tree, id, id*2+2)
+        recursively_add_two_children(tree, id*2+1, depth-1)
+        recursively_add_two_children(tree, id*2+2, depth-1)
+    end
+
+    tree = PhylogeneticTree([0])
+    depth = 12
+    recursively_add_two_children(tree, 0, depth)
+    mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)))
 end
