@@ -138,7 +138,9 @@ end
         add_child!(tree, 11, 18)
         add_child!(tree, 11, 19)
         mrca, distances, mrca_distances =
-            compute_pairwise_distances!(tree, Set([12, 16, 19]), remove_unreachable_nodes=true)
+            compute_pairwise_distances!(tree, Set([12, 16, 19]),
+                                        remove_unreachable_nodes=true,
+                                       max_distance=2)
         for key in [1, 2, 4, 5, 6, 10, 11, 12, 16, 19]
             @test key ∈ keys(tree.tree)
         end
@@ -163,7 +165,8 @@ end
     end
 
     tree = PhylogeneticTree([0])
-    depth = 12
+    depth = 13
     recursively_add_two_children(tree, 0, depth)
-    mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)))
+    max_distance = 12
+    mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)), max_distance=max_distance)
 end

@@ -34,7 +34,10 @@ function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
     tree.leaves[child_id] = child   # add child to leaves
 end
 
-function compute_pairwise_distances!(tree::PhylogeneticTree, ids::Set{Int}; remove_unreachable_nodes=false)
+function compute_pairwise_distances!(tree::PhylogeneticTree,
+                                     ids::Set{Int};
+                                     remove_unreachable_nodes=false,
+                                     max_distance::Int=typemax(Int))
     """Compute pairwise distances between nodes in the tree, and between 
     nodes in the tree and the MRCA. Distances are computed between nodes in
     `ids` and their ancestors, all the way up to the MRCA.
@@ -100,10 +103,12 @@ function compute_pairwise_distances!(tree::PhylogeneticTree, ids::Set{Int}; remo
         for child in node.children
             child.id ∉ keys(offspring_distances) && continue
             for (o_id, o_dist) in offspring_distances[child.id]
-                offspring_distances[node.id][o_id] = o_dist + 1
+                distance = o_dist + 1
+                distance > max_distance && continue
+                offspring_distances[node.id][o_id] = distance
                 min_node_id = min(node.id, o_id)
                 max_node_id = max(node.id, o_id)
-                pairwise_distances[pair_id] = (min_node_id, max_node_id, o_dist + 1)
+                pairwise_distances[pair_id] = (min_node_id, max_node_id, distance)
                 pair_id += 1
 
             end
@@ -116,8 +121,10 @@ function compute_pairwise_distances!(tree::PhylogeneticTree, ids::Set{Int}; remo
                 child2.id ∉ keys(offspring_distances) && continue
                 # second two loops: iterate over all pairs of offspring between the two children
                 for (o_id1, o_dist1) in offspring_distances[child1.id]
+                    o_dist1 > max_distance && continue
                     for (o_id2, o_dist2) in offspring_distances[child2.id]
                         distance = o_dist1 + o_dist2 + 2
+                        distance > max_distance && continue
                         min_node_id = min(o_id1, o_id2)
                         max_node_id = max(o_id1, o_id2)
                         pairwise_distances[pair_id] = (min_node_id, max_node_id, distance)
