@@ -146,7 +146,6 @@ function compute_pairwise_distances!(tree::PhylogeneticTree,
         # set parent of mrca to nothing
         # this allows the garbage collector to remove the entire tree from memory
         if !isnothing(mrca) && !isnothing(tree.tree[mrca].parent)
-            println("Setting parent of MRCA to nothing")
             tree.tree[mrca].parent = nothing
         end
         # remove all genesis nodes that are not in offspring_distances

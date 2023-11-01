@@ -1,7 +1,7 @@
 name = "PhylogeneticTrees"
 uuid = "6d56a5a2-9523-4ac5-b898-386f43f22c4e"
 authors = ["Jack <jackgarbus@gmail.com> and contributors"]
-version = "1.0.1-DEV"
+version = "1.0.2-DEV"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
