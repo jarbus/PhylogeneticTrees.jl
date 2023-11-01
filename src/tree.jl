@@ -1,5 +1,7 @@
 using DataStructures
-struct PhylogeneticNode
+# This needs to be mutable to we can update the references 
+# to other nodes for the garbage collector
+mutable struct PhylogeneticNode
     id::Int
     parent::Union{PhylogeneticNode, Nothing}
     children::Vector{PhylogeneticNode}
@@ -24,7 +26,7 @@ end
 
 function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
     @assert child_id > parent_id "Child node must have a larger ID than parent"
-    @assert parent_id ∈ keys(tree.tree) "Parent node must be in tree"
+    @assert parent_id ∈ keys(tree.tree) "Parent node $parent_id must be in tree"
     @assert child_id ∉ keys(tree.tree) "Child node must not be in tree"
     parent = tree.tree[parent_id]
     child = PhylogeneticNode(child_id, parent, [])
@@ -141,6 +143,15 @@ function compute_pairwise_distances!(tree::PhylogeneticTree,
 
     # remove unreachable nodes from the tree
     if remove_unreachable_nodes
+        # set parent of mrca to nothing
+        # this allows the garbage collector to remove the entire tree from memory
+        if !isnothing(mrca) && !isnothing(tree.tree[mrca].parent)
+            println("Setting parent of MRCA to nothing")
+            tree.tree[mrca].parent = nothing
+        end
+        # remove all genesis nodes that are not in offspring_distances
+        tree.genesis = [node for node in tree.genesis if node.id ∈ keys(offspring_distances)]
+        # remove all nodes that are not in offspring_distances
         for id in keys(tree.tree)
             if id ∉ keys(offspring_distances)
                 delete!(tree.tree, id)

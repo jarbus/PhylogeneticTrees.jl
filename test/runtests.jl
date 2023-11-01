@@ -170,3 +170,22 @@ end
     max_distance = 12
     mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)), max_distance=max_distance)
 end
+
+@testset "Memory" begin
+    tree = PhylogeneticTree(collect(1:100))
+    n_gens = 1000
+    max_distance = 5
+    for gen in 1:n_gens
+        # Print memory usage
+        parent_ids = rand(  (100(gen-1))+1:(100gen), 10)
+        child_ids = collect((100gen)+1  :((100gen)+100))
+        # Add children randomly across the 10 parents
+        for child_id in child_ids
+            add_child!(tree, rand(parent_ids), child_id)
+        end
+        compute_pairwise_distances!(tree, 
+                                    Set(child_ids),
+                                    max_distance=max_distance,
+                                    remove_unreachable_nodes=true)
+    end
+end
