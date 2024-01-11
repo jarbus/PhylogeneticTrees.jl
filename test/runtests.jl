@@ -225,7 +225,7 @@ end
    tree_deserialized = deserialize("t.jls").tree
    # We can test for equality
    @test tree_original.tree[1] == tree_deserialized.tree[1]
-   # Add up to 100_000 children
+   # Add a lot more children
    for i in 5_002:100_000
        add_child!(tree_original, i-1, i)
    end
