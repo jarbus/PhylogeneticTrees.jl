@@ -1,5 +1,6 @@
 using DataStructures
 using Serialization
+export serialize, deserialize
 # This needs to be mutable to we can update the references 
 # to other nodes for the garbage collector
 mutable struct PhylogeneticNode
@@ -55,7 +56,7 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{PhylogeneticTre
     for (id, (parent_id, child_ids)) in serialized_tree
         node = tree.tree[id]
         node.parent = parent_id == 0 ? nothing : tree.tree[parent_id]
-        node.children = [tree.tree[child_id] for child_id in child_ids]
+        node.children = [tree.tree[child_id] for child_id in child_ids if child_id in keys(tree.tree)]
         if length(node.children) == 0
             tree.leaves[id] = node
         end
