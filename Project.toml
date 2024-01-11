@@ -1,10 +1,11 @@
 name = "PhylogeneticTrees"
 uuid = "6d56a5a2-9523-4ac5-b898-386f43f22c4e"
 authors = ["Jack <jackgarbus@gmail.com> and contributors"]
-version = "1.0.2-DEV"
+version = "1.0.3-DEV"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [compat]
 julia = "1"

@@ -1,4 +1,5 @@
 using DataStructures
+using Serialization
 # This needs to be mutable to we can update the references 
 # to other nodes for the garbage collector
 mutable struct PhylogeneticNode
@@ -7,11 +8,62 @@ mutable struct PhylogeneticNode
     children::Vector{PhylogeneticNode}
 end
 
+function Base.:(==)(node1::PhylogeneticNode, node2::PhylogeneticNode)::Bool
+    # Checks that the structure and IDs of all nodes are equal, does not care
+    # about the memory location of the nodes
+    node1.id == node2.id || return false
+    # check that parents are either both nothing or their ids are equal
+    isnothing(node1.parent) == isnothing(node2.parent) || return false
+    isnothing(node1.parent) || node1.parent.id == node2.parent.id || return false
+    # Check that all children are equal
+    length(node1.children) == length(node2.children) || return false
+    all(i -> node1.children[i] == node2.children[i], 1:length(node1.children))
+end
+
+
 mutable struct PhylogeneticTree
     genesis::Vector{PhylogeneticNode}
     tree::Dict{Int,PhylogeneticNode}
     leaves::Dict{Int,PhylogeneticNode}
     mrca::Union{PhylogeneticNode, Nothing}
+end
+
+# Serialization of large trees causes a stack overflow error,
+# so we convert the tree to a dict
+function Serialization.serialize(s::AbstractSerializer, tree::PhylogeneticTree)
+    serialized_tree = Dict{Int, Any}()
+    for node in values(tree.tree)
+        serialized_tree[node.id] = [isnothing(node.parent) ? 0 : node.parent.id,
+                                    [child.id for child in node.children]]
+    end
+    # We specify that we are writing a PhylogeneticTree so the correct deserialization
+    # function is called
+    Serialization.writetag(s.io, Serialization.OBJECT_TAG)
+    Serialization.serialize(s, PhylogeneticTree)
+    Serialization.serialize(s, serialized_tree)
+end
+
+function Serialization.deserialize(s::AbstractSerializer, ::Type{PhylogeneticTree})
+    serialized_tree = Serialization.deserialize(s)
+    # Create empty tree
+    tree = PhylogeneticTree(Int[])
+    # Add all nodes to tree
+    for (id, (parent_id, child_ids)) in serialized_tree
+        tree.tree[id] = PhylogeneticNode(id, nothing, [])
+    end
+    # Add connections between nodes
+    for (id, (parent_id, child_ids)) in serialized_tree
+        node = tree.tree[id]
+        node.parent = parent_id == 0 ? nothing : tree.tree[parent_id]
+        node.children = [tree.tree[child_id] for child_id in child_ids]
+        if length(node.children) == 0
+            tree.leaves[id] = node
+        end
+        if isnothing(node.parent)
+            push!(tree.genesis, node)
+        end
+    end
+    return tree
 end
 
 function PhylogeneticTree()

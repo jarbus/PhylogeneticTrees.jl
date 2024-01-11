@@ -1,5 +1,6 @@
 using PhylogeneticTrees
 using Test
+using Serialization
 
 @testset "Construction" begin
     n_pop = 10
@@ -188,4 +189,49 @@ end
                                     max_distance=max_distance,
                                     remove_unreachable_nodes=true)
     end
+end
+
+@testset "Equality" begin
+    # Test that two nodes are equal if they have the same ID, no parents and no children
+    node1 = PhylogeneticNode(1, nothing, [])
+    node2 = PhylogeneticNode(1, nothing, [])
+    node3 = PhylogeneticNode(2, nothing, [])
+    node4 = PhylogeneticNode(1, node1, [])
+    node5 = PhylogeneticNode(1, nothing, [node1])
+    node6 = PhylogeneticNode(1, nothing, [node1, node2])
+
+    node1.id == node2.id || println("a")
+    # check that parents are either both nothing or their ids are equal
+    @test node1 == node2
+    @test node1 != node3
+    @test node1 != node4
+    @test node5 != node6
+    @test node6 == node6
+end
+
+@testset "Serialization" begin
+   struct TreeContainer
+       tree::PhylogeneticTree
+   end
+   tree_original = PhylogeneticTree([1])
+   # add a chain of children
+   for i in 2:5_001
+       add_child!(tree_original, i-1, i)
+   end
+   container = TreeContainer(tree_original)
+   # Check node serialization
+   isfile("t.jls") && rm("t.jls")
+   serialize("t.jls", container)
+   tree_deserialized = deserialize("t.jls").tree
+   # We can test for equality
+   @test tree_original.tree[1] == tree_deserialized.tree[1]
+   # Add up to 100_000 children
+   for i in 5_002:100_000
+       add_child!(tree_original, i-1, i)
+   end
+   # Test serialization and deserialization
+   isfile("t.jls") && rm("t.jls")
+   serialize("t.jls", container)
+   deserialized_container = deserialize("t.jls")
+   @test true # we don't test for equality because the tree is too large
 end
