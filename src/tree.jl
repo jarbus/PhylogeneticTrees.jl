@@ -77,7 +77,7 @@ function PhylogeneticTree(genesis_pop_ids::Vector{Int})
 end
 
 function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
-    @assert child_id > parent_id "Child node must have a larger ID than parent"
+    @assert child_id > parent_id "Child node must have a larger ID than parent, but got $child_id <= $parent_id"
     @assert parent_id ∈ keys(tree.tree) "Parent node $parent_id must be in tree"
     @assert child_id ∉ keys(tree.tree) "Child node must not be in tree"
     parent = tree.tree[parent_id]
