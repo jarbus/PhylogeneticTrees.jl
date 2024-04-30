@@ -1,6 +1,6 @@
 using DataStructures
 using Serialization
-export serialize, deserialize
+export serialize, deserialize, purge_unreachable_nodes!
 # This needs to be mutable to we can update the references 
 # to other nodes for the garbage collector
 mutable struct PhylogeneticNode
@@ -78,7 +78,7 @@ function PhylogeneticTree(genesis_pop_ids::Vector{Int})
 end
 
 function add_child!(tree::PhylogeneticTree, parent_id::Int, child_id::Int)
-    @assert child_id > parent_id "Child node must have a larger ID than parent"
+    @assert child_id > parent_id "Child node must have a larger ID than parent, but got $child_id <= $parent_id"
     @assert parent_id ∈ keys(tree.tree) "Parent node $parent_id must be in tree"
     @assert child_id ∉ keys(tree.tree) "Child node must not be in tree"
     parent = tree.tree[parent_id]
@@ -101,6 +101,10 @@ function compute_pairwise_distances!(tree::PhylogeneticTree,
     Params:
         tree::PhylogeneticTree: the tree to compute distances for
         ids::Set{Int}: the set of IDs to start working up the tree
+        remove_unreachable_nodes::Bool: if true, only keep nodes BETWEEN the
+            MRCA and the IDs in the tree. If false, keep all nodes in the tree. This is
+            different from the behavior of `purge_unreachable_nodes!` which removes
+            all nodes that are not reachable from the set of ids, including the MRCA.
 
     Returns:
         mrca::Union{Int, Nothing}: the MRCA of the tree
@@ -198,6 +202,7 @@ function compute_pairwise_distances!(tree::PhylogeneticTree,
     if remove_unreachable_nodes
         # set parent of mrca to nothing
         # this allows the garbage collector to remove the entire tree from memory
+        # except the MRCA and it's extant descendants
         if !isnothing(mrca) && !isnothing(tree.tree[mrca].parent)
             tree.tree[mrca].parent = nothing
         end
@@ -213,4 +218,51 @@ function compute_pairwise_distances!(tree::PhylogeneticTree,
     end
     mrca_distances = isnothing(mrca) ? Dict{Int, Int}() : offspring_distances[mrca]
     return mrca, pairwise_distances_dict, mrca_distances
+end
+
+function purge_unreachable_nodes!(tree::PhylogeneticTree, ids::Set{Int})
+    """Remove all nodes that are not reachable from the set of ids. This keeps nodes all
+    the way back to genesis.
+
+    Params:
+        tree::PhylogeneticTree: the tree to purge
+        ids::Set{Int}: the set of IDs to start working up the tree
+    """
+    pq = PriorityQueue{Int, Int}(Base.Order.Reverse)
+    for id in ids
+        pq[id] = id
+    end
+    # figure out which nodes to keep
+    reachable_nodes = Int[]
+    while length(pq) > 0
+        id = dequeue!(pq)
+        if id in keys(tree.tree)
+            node = tree.tree[id]
+            push!(reachable_nodes, id)
+            if !isnothing(node.parent)
+                pq[node.parent.id] = tree.tree[id].parent.id
+            end
+        end
+    end
+    unreachable_nodes = setdiff(keys(tree.tree), reachable_nodes)
+    # traverse tree and remove all nodes that are not reachable
+    # We start from the top of the tree (highest node) and work our way down
+    for unreachable_id in sort(unique(unreachable_nodes))
+        node = tree.tree[unreachable_id]
+        # delete leaf and genesis references
+        delete!(tree.tree, unreachable_id)
+        delete!(tree.leaves, unreachable_id)
+        if node in tree.genesis
+            tree.genesis = [g for g in tree.genesis if g != node]
+        end
+        # Remove reference from parent (which can be reachable) to unreachable node
+        if !isnothing(node.parent)
+            parent = node.parent
+            parent.children = [child for child in parent.children if child.id != unreachable_nodes]
+        end
+
+        # We shouldn't need to recursively delete children, since they should be unreachable
+        # and will be garbage collected.
+    end
+    @assert length(tree.tree) == length(reachable_nodes)
 end

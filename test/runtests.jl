@@ -113,7 +113,7 @@ end
         @test 2 ∈ keys(tree.tree)
     end
 
-    @testset "Remove unreachable nodes" begin
+    @testset "compute_pairwise_distances, remove_unreachable_nodes=true" begin
         #     1          2      3
         #    / \        / \    / \
         #   4   5      6   7  8   9
@@ -151,6 +151,40 @@ end
 
     end
 
+    @testset "purge_unreachable_nodes!" begin
+        #     1          2      3
+        #    / \        / \    / \
+        #   4   5      6   7  8   9
+        #  /     \     |   |  |   |
+        # 10     11   12  13 14  15
+        # / \    / \
+        #16 17  18 19
+        tree = PhylogeneticTree([1, 2, 3])
+        add_child!(tree, 1, 4)
+        add_child!(tree, 1, 5)
+        add_child!(tree, 2, 6)
+        add_child!(tree, 2, 7)
+        add_child!(tree, 3, 8)
+        add_child!(tree, 3, 9)
+        add_child!(tree, 4, 10)
+        add_child!(tree, 5, 11)
+        add_child!(tree, 6, 12)
+        add_child!(tree, 7, 13)
+        add_child!(tree, 8, 14)
+        add_child!(tree, 9, 15)
+        add_child!(tree, 10, 16)
+        add_child!(tree, 10, 17)
+        add_child!(tree, 11, 18)
+        add_child!(tree, 11, 19)
+        purge_unreachable_nodes!(tree, Set([12, 16, 19]))
+        for key in [1, 2, 4, 5, 6, 10, 11, 12, 16, 19]
+            @test key ∈ keys(tree.tree)
+        end
+        for key in [3, 7, 8, 9, 13, 14, 15, 17, 18]
+            @test key ∉ keys(tree.tree)
+        end
+
+    end
 end
 
 @testset "Perf" begin
@@ -170,6 +204,10 @@ end
     recursively_add_two_children(tree, 0, depth)
     max_distance = 12
     mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)), max_distance=max_distance)
+    start = time()
+    mrca, distances, mrca_distances = compute_pairwise_distances!(tree, Set(collect(2^(depth-1)+1:2^depth)), max_distance=max_distance)
+    println("Time to compute pairwise distances for 8192 leaves: ", time()-start)
+    start = time()
 end
 
 @testset "Memory" begin
@@ -234,4 +272,56 @@ end
    serialize("t.jls", container)
    deserialized_container = deserialize("t.jls")
    @test true # we don't test for equality because the tree is too large
+end
+
+@testset "Memory2" begin
+    # Separate test for observing memory usage, this time using purge_unreachable_nodes!
+    # We need to manually observe this test
+    n_gens = 10000
+    n_parents = 10
+    n_children = 100
+    tree = PhylogeneticTree(collect(1:n_children))
+    max_distance = 5
+    child_ids = []
+
+    function print_usage(s)
+        println("Memory usage $s purge: ", Base.summarysize(tree))
+        println("Memory usage $s purge(rand_node): ", Base.summarysize(rand(tree.tree)))
+        println("Size of tree: ", length(tree.tree))
+        println("Size of leaves: ", length(tree.leaves))
+        println("Size of genesis: ", length(tree.genesis))
+    end
+    print_usage("before loop")
+
+    for gen in 1:n_gens
+        # Print memory usage
+        parent_ids = rand(  (n_children*(gen-1))+1:(n_children*gen), n_parents)
+        child_ids = collect((n_children*gen)+1  :((n_children*gen)+n_children))
+        # Add children randomly across the 10 parents
+        for child_id in child_ids
+            add_child!(tree, rand(parent_ids), child_id)
+        end
+    end
+    print_usage("before purge_unreachable_nodes!")
+    purge_unreachable_nodes!(tree, Set(child_ids))
+    Base.GC.gc()
+    # go through tree and print memory usage of each entry in tree.tree
+    print_usage("after purge_unreachable_nodes!")
+    for (id, node) in tree.tree
+        println("Memory usage of node $id: ", Base.summarysize(node))
+        break
+    end
+    # go through tree and print memory usage of each entry in tree.leaves
+    for (id, node) in tree.leaves
+        println("Memory usage of leaf $id: ", Base.summarysize(node))
+        break
+    end
+    # go through tree and print memory usage of each entry in tree.genesis
+    for node in tree.genesis
+        println("Memory usage of genesis $(node.id): ", Base.summarysize(node))
+        break
+    end
+    compute_pairwise_distances!(tree, Set(child_ids), max_distance=max_distance, remove_unreachable_nodes=true)
+    
+    print_usage("after compute_pairwise_distances!")
 end
